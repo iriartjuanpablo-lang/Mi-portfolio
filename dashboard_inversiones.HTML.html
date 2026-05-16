@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de inversiones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 15px; }
+  
+  #setup { max-width: 520px; margin: 80px auto; background: #fff; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.12); padding: 2rem; }
+  #setup h1 { font-size: 20px; font-weight: 500; margin-bottom: 8px; }
+  #setup p { color: #666; font-size: 14px; margin-bottom: 1.5rem; line-height: 1.6; }
+  #setup label { font-size: 13px; color: #444; display: block; margin-bottom: 6px; }
+  #setup input { width: 100%; padding: 10px 12px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none; }
+  #setup input:focus { border-color: #185FA5; box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  #setup button { width: 100%; padding: 10px; background: #185FA5; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  #setup button:hover { background: #0C447C; }
+  #error-msg { color: #D85A30; font-size: 13px; margin-top: 10px; display: none; }
+
+  #dashboard { display: none; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 500; }
+  .header-right { display: flex; gap: 10px; align-items: center; }
+  .badge { font-size: 12px; background: #e8f5ee; color: #0F6E56; padding: 4px 10px; border-radius: 6px; }
+  .refresh-btn { font-size: 13px; padding: 6px 14px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: white; cursor: pointer; }
+  .refresh-btn:hover { background: #f5f5f3; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab { padding: 7px 18px; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 8px; font-size: 13px; cursor: pointer; background: white; color: #555; }
+  .tab.active { background: #1a1a1a; color: white; border-color: #1a1a1a; font-weight: 500; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: white; border-radius: 10px; border: 0.5px solid rgba(0,0,0,0.1); padding: 14px 16px; }
+  .metric-label { font-size: 12px; color: #888; margin-bottom: 5px; }
+  .metric-value { font-size: 22px; font-weight: 500; }
+  .metric-value.up { color: #0F6E56; }
+  .metric-value.down { color: #993C1D; }
+  .metric-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
+
+  .card { background: white; border-radius: 12px; border: 0.5px solid rgba(0,0,0,0.1); padding: 1.25rem; margin-bottom: 1.25rem; }
+  .card h3 { font-size: 14px; font-weight: 500; color: #444; margin-bottom: 4px; }
+  .card .sub { font-size: 12px; color: #aaa; margin-bottom: 1rem; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+  .chart-wrap { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; font-size: 12px; color: #666; }
+  .leg { display: flex; align-items: center; gap: 5px; }
+  .leg-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  .loading { text-align: center; padding: 3rem; color: #aaa; font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #e0e0e0; border-top-color: #185FA5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  table.pos-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.pos-table th { text-align: left; padding: 8px 10px; font-weight: 500; color: #888; font-size: 12px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+  table.pos-table td { padding: 9px 10px; border-bottom: 0.5px solid rgba(0,0,0,0.06); }
+  table.pos-table tr:last-child td { border-bottom: none; }
+  table.pos-table tr:hover td { background: #f9f9f7; }
+  .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .pill-acc { background: #E6F1FB; color: #0C447C; }
+  .pill-ced { background: #E1F5EE; color: #085041; }
+  .pill-bon { background: #FAEEDA; color: #633806; }
+  .pos-up { color: #0F6E56; font-weight: 500; }
+  .pos-down { color: #993C1D; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>Dashboard de inversiones</h1>
+  <p>Ingresá tu API key de Google Sheets y el ID de tu spreadsheet para cargar los datos en vivo. Esta información se guarda solo en tu navegador.</p>
+  <label>API Key de Google Sheets</label>
+  <input type="password" id="api-key" placeholder="AIza..." autocomplete="off">
+  <label>ID del Spreadsheet</label>
+  <input type="text" id="sheet-id" placeholder="1qJo1UfsQFk4lubFXKVgM_..." value="1qJo1UfsQFk4lubFXKVgM_PmfV96XXO5FmIS8O9WbJbk">
+  <button onclick="iniciar()">Cargar dashboard</button>
+  <div id="error-msg"></div>
+</div>
+
+<div id="dashboard">
+  <div class="header">
+    <div>
+      <h1>Portfolio de inversiones</h1>
+      <div id="last-update" style="font-size:12px;color:#aaa;margin-top:3px;"></div>
+    </div>
+    <div class="header-right">
+      <span class="badge" id="conn-badge">Conectado a Google Sheets</span>
+      <button class="refresh-btn" onclick="cargarDatos()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('resumen',this)">Resumen</button>
+    <button class="tab" onclick="showTab('posiciones',this)">Posiciones actuales</button>
+    <button class="tab" onclick="showTab('rendimiento',this)">P&L por especie</button>
+    <button class="tab" onclick="showTab('operaciones',this)">Historial</button>
+  </div>
+
+  <div id="resumen" class="section active">
+    <div id="metrics-container" class="metrics"></div>
+    <div class="two-col">
+      <div class="card">
+        <h3>Composición por tipo de activo</h3>
+        <div class="sub">Valor actual en USD</div>
+        <div class="legend">
+          <span class="leg"><span class="leg-sq" style="background:#185FA5"></span>Acciones ARG</span>
+          <span class="leg"><span class="leg-sq" style="background:#1D9E75"></span>CEDEARs</span>
+          <span class="leg"><span class="leg-sq" style="background:#BA7517"></span>Bonos</span>
+        </div>
+        <div class="chart-wrap" style="height:260px"><canvas id="c-donut" role="img" aria-label="Composición del portfolio por tipo de activo">Composición porcentual del portfolio.</canvas></div>
+      </div>
+      <div class="card">
+        <h3>Top 8 posiciones (USD)</h3>
+        <div class="sub">Por valor de mercado actual</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="c-top" role="img" aria-label="Top posiciones en USD">Top posiciones del portfolio.</canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Ganancia realizada acumulada (ARS)</h3>
+      <div class="sub">Evolución a lo largo de las operaciones</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="c-acum" role="img" aria-label="Curva de ganancia acumulada en ARS">Ganancia acumulada a lo largo del tiempo.</canvas></div>
+    </div>
+  </div>
+
+  <div id="posiciones" class="section">
+    <div class="card">
+      <h3>Posiciones abiertas</h3>
+      <div class="sub" id="pos-count"></div>
+      <div style="overflow-x:auto">
+        <table class="pos-table" id="pos-table">
+          <thead>
+            <tr>
+              <th>Especie</th>
+              <th>Tipo</th>
+              <th>Sector</th>
+              <th style="text-align:right">Cantidad</th>
+              <th style="text-align:right">Precio actual</th>
+              <th style="text-align:right">Tenencia ARS</th>
+              <th style="text-align:right">Tenencia USD</th>
+              <th style="text-align:right">Rend. ARS</th>
+              <th style="text-align:right">Rend. %</th>
+            </tr>
+          </thead>
+          <tbody id="pos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="rendimiento" class="section">
+    <div class="card">
+      <h3>P&L realizado por especie (ARS)</h3>
+      <div class="sub">Solo operaciones cerradas. Verde = ganancia · Rojo = pérdida.</div>
+      <div class="chart-wrap" style="height:700px"><canvas id="c-pl" role="img" aria-label="P&L realizado por especie en ARS">Ganancia y pérdida por especie.</canvas></div>
+    </div>
+  </div>
+
+  <div id="operaciones" class="section">
+    <div class="card">
+      <h3>Últimas 30 operaciones</h3>
+      <div class="sub">Desde tu hoja de Operaciones en Google Sheets</div>
+      <div style="overflow-x:auto">
+        <table class="pos-table" id="ops-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Especie</th>
+              <th>Instrumento</th>
+              <th style="text-align:right">Cantidad</th>
+              <th style="text-align:right">Precio</th>
+              <th style="text-align:right">Total ARS</th>
+              <th style="text-align:right">Total USD</th>
+            </tr>
+          </thead>
+          <tbody id="ops-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_KEY = '';
+let SHEET_ID = '';
+let chartsInstances = {};
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function fmt(n) {
+  if (n === null || n === undefined || n === '') return '-';
+  const num = parseFloat(String(n).replace(/[$.,%]/g,'').replace(',','.'));
+  if (isNaN(num)) return n;
+  return num;
+}
+
+function fmtARS(n) {
+  const num = fmt(n);
+  if (isNaN(num)) return '-';
+  return '$' + Math.round(num).toLocaleString('es-AR');
+}
+
+function fmtUSD(n) {
+  const num = fmt(n);
+  if (isNaN(num)) return '-';
+  return '$' + num.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function fmtPct(n) {
+  const num = fmt(n);
+  if (isNaN(num)) return '-';
+  return (num >= 0 ? '+' : '') + num.toFixed(1) + '%';
+}
+
+async function fetchSheet(range) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Error al acceder a Google Sheets: ' + res.status);
+  const data = await res.json();
+  return data.values || [];
+}
+
+function destroyChart(id) {
+  if (chartsInstances[id]) {
+    chartsInstances[id].destroy();
+    delete chartsInstances[id];
+  }
+}
+
+async function cargarDatos() {
+  document.getElementById('metrics-container').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando datos desde Google Sheets...</div>';
+
+  try {
+    const [ops, posRaw, resumen] = await Promise.all([
+      fetchSheet('Operaciones!A:W'),
+      fetchSheet('Posiciones actuales!A:O'),
+      fetchSheet('Operaciones!Y:Z')
+    ]);
+
+    renderMetrics(ops, posRaw);
+    renderDonut(posRaw);
+    renderTopBar(posRaw);
+    renderAcumulado(ops);
+    renderPosTable(posRaw);
+    renderPL(resumen);
+    renderOps(ops);
+
+    document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleString('es-AR');
+  } catch(e) {
+    document.getElementById('metrics-container').innerHTML = '<div class="loading" style="color:#D85A30">Error: ' + e.message + '<br><small>Verificá que el sheet esté compartido como "Cualquier persona con el link puede ver" y que la API key sea correcta.</small></div>';
+  }
+}
+
+function renderMetrics(ops, posRaw) {
+  if (!ops || ops.length < 2) return;
+  const header = ops[0];
+  const rows = ops.slice(1).filter(r => r.length > 5);
+
+  let totalInv = 0, totalVend = 0, nOps = 0, nCompras = 0, nVentas = 0, ganReal = 0;
+  rows.forEach(r => {
+    const op = (r[2]||'').toLowerCase();
+    const total = fmt(r[9]);
+    if (!isNaN(total)) {
+      if (op === 'compra') { totalInv += total; nCompras++; }
+      if (op === 'venta') { totalVend += total; nVentas++; }
+      nOps++;
+    }
+    const ganNeta = fmt(r[18]);
+    if (!isNaN(ganNeta) && ganNeta > 0) ganReal += ganNeta;
+  });
+
+  let totalARS = 0, totalUSD = 0, rendARS = 0;
+  if (posRaw && posRaw.length > 1) {
+    posRaw.slice(1).forEach(r => {
+      const v = fmt(r[6]);
+      const u = fmt(r[7]);
+      const rend = fmt(r[8]);
+      if (!isNaN(v)) totalARS += v;
+      if (!isNaN(u)) totalUSD += u;
+      if (!isNaN(rend)) rendARS += rend;
+    });
+  }
+
+  const rendPct = totalARS > 0 ? ((rendARS / (totalARS - rendARS)) * 100) : 0;
+
+  const items = [
+    { label: 'Portfolio total (ARS)', value: fmtARS(totalARS), cls: '', sub: '' },
+    { label: 'Portfolio total (USD)', value: fmtUSD(totalUSD), cls: '', sub: '' },
+    { label: 'Rendimiento actual', value: fmtPct(rendPct), cls: rendPct >= 0 ? 'up' : 'down', sub: 'vs costo de compra' },
+    { label: 'Ganancia realizada', value: fmtARS(ganReal), cls: 'up', sub: 'operaciones cerradas' },
+    { label: 'Total invertido', value: fmtARS(totalInv), cls: '', sub: nCompras + ' compras' },
+    { label: 'Total vendido', value: fmtARS(totalVend), cls: '', sub: nVentas + ' ventas' },
+    { label: 'Operaciones', value: nOps, cls: '', sub: '' },
+  ];
+
+  document.getElementById('metrics-container').innerHTML = items.map(i =>
+    `<div class="metric">
+      <div class="metric-label">${i.label}</div>
+      <div class="metric-value ${i.cls}">${i.value}</div>
+      ${i.sub ? `<div class="metric-sub">${i.sub}</div>` : ''}
+    </div>`
+  ).join('');
+}
+
+function renderDonut(posRaw) {
+  if (!posRaw || posRaw.length < 2) return;
+  let acc = 0, ced = 0, bon = 0;
+  posRaw.slice(1).forEach(r => {
+    const tipo = (r[0]||'').toLowerCase();
+    const usd = fmt(r[7]);
+    if (isNaN(usd) || usd <= 0) return;
+    if (tipo.includes('accion') || tipo.includes('acción')) acc += usd;
+    else if (tipo.includes('cedear')) ced += usd;
+    else if (tipo.includes('bono') || tipo.includes('fci')) bon += usd;
+  });
+  const total = acc + ced + bon;
+  const pct = v => total > 0 ? (v/total*100).toFixed(1) : 0;
+
+  destroyChart('c-donut');
+  chartsInstances['c-donut'] = new Chart(document.getElementById('c-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: [`Acciones ${pct(acc)}%`, `CEDEARs ${pct(ced)}%`, `Bonos ${pct(bon)}%`],
+      datasets: [{
+        data: [Math.round(acc), Math.round(ced), Math.round(bon)],
+        backgroundColor: ['#185FA5','#1D9E75','#BA7517'],
+        borderWidth: 3, borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 12 }, padding: 16, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ' ' + fmtUSD(ctx.parsed) + ' USD' } }
+      }
+    }
+  });
+}
+
+function renderTopBar(posRaw) {
+  if (!posRaw || posRaw.length < 2) return;
+  const rows = posRaw.slice(1)
+    .map(r => ({ n: r[1]||'', tipo: (r[0]||''), usd: fmt(r[7]) }))
+    .filter(r => !isNaN(r.usd) && r.usd > 0)
+    .sort((a,b) => b.usd - a.usd)
+    .slice(0, 8);
+
+  const colFor = t => {
+    const tl = t.toLowerCase();
+    if (tl.includes('cedear')) return '#1D9E75';
+    if (tl.includes('bono') || tl.includes('fci')) return '#BA7517';
+    return '#185FA5';
+  };
+
+  destroyChart('c-top');
+  chartsInstances['c-top'] = new Chart(document.getElementById('c-top'), {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.n),
+      datasets: [{
+        data: rows.map(r => Math.round(r.usd)),
+        backgroundColor: rows.map(r => colFor(r.tipo)),
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' $'+ctx.parsed.x.toLocaleString()+' USD' } } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', callback: v => '$'+v.toLocaleString() } },
+        y: { grid: { display: false }, ticks: { color: '#444', font: { size: 12 } } }
+      }
+    }
+  });
+}
+
+function renderAcumulado(ops) {
+  if (!ops || ops.length < 2) return;
+  const rows = ops.slice(1).filter(r => r.length > 21 && r[4] && r[21]);
+  const puntos = rows.map(r => ({ fecha: r[4], gan: fmt(r[21]) })).filter(p => !isNaN(p.gan) && p.gan > 0);
+  if (puntos.length === 0) return;
+
+  const step = Math.max(1, Math.floor(puntos.length / 20));
+  const sampled = puntos.filter((_, i) => i % step === 0 || i === puntos.length - 1);
+
+  destroyChart('c-acum');
+  chartsInstances['c-acum'] = new Chart(document.getElementById('c-acum'), {
+    type: 'line',
+    data: {
+      labels: sampled.map(p => p.fecha),
+      datasets: [{
+        data: sampled.map(p => Math.round(p.gan / 1000)),
+        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.07)',
+        fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: '#1D9E75'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' $'+ctx.parsed.y.toLocaleString()+'K ARS' } } },
+      scales: {
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', callback: v => '$'+v+'K' } },
+        x: { grid: { display: false }, ticks: { color: '#888', maxTicksLimit: 8 } }
+      }
+    }
+  });
+}
+
+function renderPosTable(posRaw) {
+  if (!posRaw || posRaw.length < 2) return;
+  const rows = posRaw.slice(1).filter(r => r[1] && r[3]);
+  document.getElementById('pos-count').textContent = rows.length + ' posiciones abiertas';
+
+  const pillClass = t => {
+    const tl = (t||'').toLowerCase();
+    if (tl.includes('cedear')) return 'pill-ced';
+    if (tl.includes('bono') || tl.includes('fci')) return 'pill-bon';
+    return 'pill-acc';
+  };
+  const pillLabel = t => {
+    const tl = (t||'').toLowerCase();
+    if (tl.includes('cedear')) return 'CEDEAR';
+    if (tl.includes('bono')) return 'Bono';
+    if (tl.includes('fci')) return 'FCI';
+    return 'Acción';
+  };
+
+  const sorted = [...rows].sort((a,b) => (fmt(b[7])||0) - (fmt(a[7])||0));
+  document.getElementById('pos-tbody').innerHTML = sorted.map(r => {
+    const rendPct = fmt(r[9]);
+    const rendCls = !isNaN(rendPct) && rendPct >= 0 ? 'pos-up' : 'pos-down';
+    return `<tr>
+      <td><strong>${r[1]||''}</strong></td>
+      <td><span class="pill ${pillClass(r[0])}">${pillLabel(r[0])}</span></td>
+      <td style="color:#888;font-size:12px">${r[2]||''}</td>
+      <td style="text-align:right">${r[3]||''}</td>
+      <td style="text-align:right">${fmtARS(r[4])}</td>
+      <td style="text-align:right">${fmtARS(r[6])}</td>
+      <td style="text-align:right">${fmtUSD(r[7])}</td>
+      <td style="text-align:right">${fmtARS(r[8])}</td>
+      <td style="text-align:right" class="${rendCls}">${fmtPct(r[9])}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPL(resumen) {
+  if (!resumen || resumen.length < 2) return;
+  const rows = resumen.slice(1)
+    .map(r => ({ n: r[0]||'', v: fmt(r[1]) }))
+    .filter(r => r.n && !isNaN(r.v) && r.v !== 0)
+    .sort((a,b) => b.v - a.v);
+
+  destroyChart('c-pl');
+  chartsInstances['c-pl'] = new Chart(document.getElementById('c-pl'), {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.n),
+      datasets: [{
+        data: rows.map(r => Math.round(r.v / 1000)),
+        backgroundColor: rows.map(r => r.v >= 0 ? '#1D9E75' : '#D85A30'),
+        borderRadius: 3
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => (ctx.parsed.x >= 0 ? ' +' : ' ') + '$'+ctx.parsed.x.toLocaleString()+'K ARS' } } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', callback: v => '$'+v+'K' } },
+        y: { grid: { display: false }, ticks: { color: '#444', font: { size: 12 } } }
+      }
+    }
+  });
+}
+
+function renderOps(ops) {
+  if (!ops || ops.length < 2) return;
+  const rows = ops.slice(1).filter(r => r.length > 9 && r[4]).reverse().slice(0, 30);
+  document.getElementById('ops-tbody').innerHTML = rows.map(r => {
+    const isCompra = (r[2]||'').toLowerCase() === 'compra';
+    const opColor = isCompra ? '#0C447C' : '#993C1D';
+    const opBg = isCompra ? '#E6F1FB' : '#FAECE7';
+    return `<tr>
+      <td style="color:#888;font-size:12px">${r[4]||''}</td>
+      <td><span class="pill" style="background:${opBg};color:${opColor}">${r[2]||''}</span></td>
+      <td><strong>${r[1]||''}</strong></td>
+      <td style="color:#888;font-size:12px">${r[0]||''}</td>
+      <td style="text-align:right">${r[3]||''}</td>
+      <td style="text-align:right">${fmtARS(r[6])}</td>
+      <td style="text-align:right">${fmtARS(r[9])}</td>
+      <td style="text-align:right">${fmtUSD(r[10])}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function iniciar() {
+  API_KEY = document.getElementById('api-key').value.trim();
+  SHEET_ID = document.getElementById('sheet-id').value.trim();
+  const errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+
+  if (!API_KEY || !SHEET_ID) {
+    errEl.textContent = 'Completá ambos campos antes de continuar.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  localStorage.setItem('inv_sheet_id', SHEET_ID);
+  localStorage.setItem('inv_api_key', API_KEY);
+
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  await cargarDatos();
+}
+
+window.onload = () => {
+  const savedId = localStorage.getItem('inv_sheet_id');
+  const savedKey = localStorage.getItem('inv_api_key');
+  if (savedId) document.getElementById('sheet-id').value = savedId;
+  if (savedKey) document.getElementById('api-key').value = savedKey;
+  if (savedId && savedKey) iniciar();
+};
+</script>
+</body>
+</html>
