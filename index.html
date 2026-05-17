@@ -23,7 +23,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
 .header h1 { font-size: 22px; font-weight: 500; }
-.header-right { display: flex; gap: 10px; align-items: center; }
 .badge { font-size: 12px; background: #e8f5ee; color: #0F6E56; padding: 4px 10px; border-radius: 6px; }
 .refresh-btn { font-size: 13px; padding: 6px 14px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: white; cursor: pointer; }
 .refresh-btn:hover { background: #f5f5f3; }
@@ -35,10 +34,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .section { display: none; }
 .section.active { display: block; }
 
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
 .metric { background: white; border-radius: 10px; border: 0.5px solid rgba(0,0,0,0.1); padding: 14px 16px; }
 .metric-label { font-size: 12px; color: #888; margin-bottom: 5px; }
-.metric-value { font-size: 20px; font-weight: 500; }
+.metric-value { font-size: 19px; font-weight: 500; }
 .metric-value.up { color: #0F6E56; }
 .metric-value.down { color: #993C1D; }
 .metric-sub { font-size: 12px; color: #aaa; margin-top: 2px; }
@@ -60,8 +59,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 @keyframes spin { to { transform: rotate(360deg); } }
 
 table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.t th { text-align: left; padding: 8px 10px; font-weight: 500; color: #888; font-size: 12px; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
-table.t td { padding: 9px 10px; border-bottom: 0.5px solid rgba(0,0,0,0.06); }
+table.t th { text-align: left; padding: 8px 10px; font-weight: 500; color: #888; font-size: 12px; border-bottom: 0.5px solid rgba(0,0,0,0.1); white-space: nowrap; }
+table.t td { padding: 9px 10px; border-bottom: 0.5px solid rgba(0,0,0,0.06); white-space: nowrap; }
 table.t tr:last-child td { border-bottom: none; }
 table.t tr:hover td { background: #f9f9f7; }
 .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
@@ -73,6 +72,8 @@ table.t tr:hover td { background: #f9f9f7; }
 .p-ven { background: #FAECE7; color: #993C1D; }
 .up { color: #0F6E56; font-weight: 500; }
 .down { color: #993C1D; font-weight: 500; }
+.neutral { color: #aaa; }
+.warn { font-size: 12px; color: #BA7517; background: #FAEEDA; padding: 2px 8px; border-radius: 4px; display: inline-block; }
 </style>
 </head>
 <body>
@@ -94,7 +95,7 @@ table.t tr:hover td { background: #f9f9f7; }
       <h1>Portfolio de inversiones</h1>
       <div id="last-update" style="font-size:12px;color:#aaa;margin-top:3px;"></div>
     </div>
-    <div class="header-right">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <span class="badge">Conectado a Google Sheets</span>
       <button class="refresh-btn" onclick="cargarDatos()">↻ Actualizar</button>
     </div>
@@ -102,66 +103,73 @@ table.t tr:hover td { background: #f9f9f7; }
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('resumen',this)">Resumen</button>
-    <button class="tab" onclick="showTab('posiciones',this)">Por especie</button>
+    <button class="tab" onclick="showTab('posiciones',this)">Posiciones</button>
     <button class="tab" onclick="showTab('rendimiento',this)">P&L realizado</button>
     <button class="tab" onclick="showTab('historial',this)">Historial</button>
   </div>
 
+  <!-- RESUMEN -->
   <div id="resumen" class="section active">
     <div id="metrics-wrap" class="metrics"></div>
     <div class="two-col">
       <div class="card">
         <h3>Composición por tipo de activo</h3>
-        <div class="sub">Basado en total invertido neto (ARS)</div>
+        <div class="sub">Valor de mercado actual (ARS)</div>
         <div class="legend">
           <span class="leg"><span class="leg-sq" style="background:#185FA5"></span>Acciones</span>
           <span class="leg"><span class="leg-sq" style="background:#1D9E75"></span>Cedears</span>
           <span class="leg"><span class="leg-sq" style="background:#BA7517"></span>Bonos</span>
           <span class="leg"><span class="leg-sq" style="background:#7F77DD"></span>FCI</span>
         </div>
-        <div class="chart-wrap" style="height:250px"><canvas id="c-donut" role="img" aria-label="Composición del portfolio por tipo">Composición.</canvas></div>
+        <div class="chart-wrap" style="height:250px"><canvas id="c-donut"></canvas></div>
       </div>
       <div class="card">
-        <h3>Top 10 especies por inversión (ARS)</h3>
-        <div class="sub">Total comprado menos vendido</div>
-        <div class="chart-wrap" style="height:280px"><canvas id="c-top" role="img" aria-label="Top especies por inversión">Top especies.</canvas></div>
+        <h3>Top 10 por valor de mercado (ARS)</h3>
+        <div class="sub">Cantidad actual × precio actual</div>
+        <div class="chart-wrap" style="height:280px"><canvas id="c-top"></canvas></div>
       </div>
     </div>
     <div class="card">
       <h3>Ganancia acumulada en el tiempo (ARS)</h3>
-      <div class="sub">Evolución de la ganancia realizada acumulada</div>
-      <div class="chart-wrap" style="height:220px"><canvas id="c-acum" role="img" aria-label="Ganancia acumulada">Ganancia acumulada.</canvas></div>
+      <div class="sub">Evolución de la ganancia realizada acumulada desde Operaciones</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="c-acum"></canvas></div>
     </div>
   </div>
 
+  <!-- POSICIONES -->
   <div id="posiciones" class="section">
     <div class="card">
-      <h3>Posiciones abiertas por especie</h3>
-      <div class="sub">Calculado desde el historial de operaciones</div>
+      <h3>Posiciones abiertas</h3>
+      <div class="sub">Valor de mercado, costo promedio y rendimiento no realizado. Precios desde hoja Precios.</div>
       <div style="overflow-x:auto">
         <table class="t">
           <thead><tr>
-            <th>Especie</th><th>Tipo</th>
-            <th style="text-align:right">Cant. actual</th>
-            <th style="text-align:right">Comprado ARS</th>
-            <th style="text-align:right">Vendido ARS</th>
-            <th style="text-align:right">Neto ARS</th>
-            <th style="text-align:right">Operaciones</th>
+            <th>Especie</th>
+            <th>Tipo</th>
+            <th style="text-align:right">Cantidad</th>
+            <th style="text-align:right">Costo prom.</th>
+            <th style="text-align:right">Precio actual</th>
+            <th style="text-align:right">Valor mercado</th>
+            <th style="text-align:right">Gan. no realizada</th>
+            <th style="text-align:right">Rend. %</th>
           </tr></thead>
           <tbody id="pos-tbody"></tbody>
+          <tfoot id="pos-tfoot"></tfoot>
         </table>
       </div>
     </div>
   </div>
 
+  <!-- P&L REALIZADO -->
   <div id="rendimiento" class="section">
     <div class="card">
       <h3>Ganancia realizada por especie (ARS)</h3>
-      <div class="sub">Solo de operaciones de venta con resultado neto positivo o negativo</div>
-      <div class="chart-wrap" style="height:600px"><canvas id="c-pl" role="img" aria-label="P&L por especie">P&L.</canvas></div>
+      <div class="sub">De operaciones de venta cerradas. Verde = ganancia · Rojo = pérdida.</div>
+      <div class="chart-wrap" style="height:600px"><canvas id="c-pl"></canvas></div>
     </div>
   </div>
 
+  <!-- HISTORIAL -->
   <div id="historial" class="section">
     <div class="card">
       <h3>Últimas 50 operaciones</h3>
@@ -195,12 +203,17 @@ function showTab(id, btn) {
 
 function parseNum(v) {
   if (v === null || v === undefined || v === '') return NaN;
-  const s = String(v).replace(/\s/g,'').replace(/\$/g,'').replace(/USD/g,'').replace(/\./g,'').replace(',','.').trim();
+  const s = String(v).replace(/\s/g,'').replace(/\$/g,'').replace(/USD/g,'')
+    .replace(/\./g,'').replace(',','.').trim();
   return parseFloat(s);
 }
 
-function fmtARS(n) {
-  if (isNaN(n)) return '-';
+function fmtARS(n, short) {
+  if (isNaN(n) || n === null) return '-';
+  if (short) {
+    if (Math.abs(n) >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+    if (Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+  }
   return '$' + Math.round(n).toLocaleString('es-AR');
 }
 function fmtUSD(n) {
@@ -229,13 +242,26 @@ async function fetchSheet(range) {
 async function cargarDatos() {
   document.getElementById('metrics-wrap').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando datos desde Google Sheets...</div>';
   try {
-    const ops = await fetchSheet('Operaciones!A:W');
+    const [ops, precios] = await Promise.all([
+      fetchSheet('Operaciones!A:W'),
+      fetchSheet('Precios!A:B').catch(() => [])
+    ]);
+
     if (!ops || ops.length < 2) throw new Error('No se encontraron datos en la hoja Operaciones');
 
-    const header = ops[0];
-    const rows = ops.slice(1).filter(r => r[1] && r[2]);
+    // Mapa de precios actuales
+    const precioMap = {};
+    if (precios && precios.length > 0) {
+      precios.forEach(r => {
+        if (r[0] && r[1]) {
+          const p = parseNum(r[1]);
+          if (!isNaN(p) && p > 0) precioMap[r[0].trim().toUpperCase()] = p;
+        }
+      });
+    }
 
-    procesarDatos(rows);
+    const rows = ops.slice(1).filter(r => r[1] && r[2]);
+    procesarDatos(rows, precioMap);
     document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleString('es-AR');
   } catch(e) {
     document.getElementById('metrics-wrap').innerHTML = `<div class="loading" style="color:#D85A30">
@@ -245,16 +271,11 @@ async function cargarDatos() {
   }
 }
 
-function procesarDatos(rows) {
-  // Columnas: A=0 Instrumento, B=1 Especie, C=2 Operación, D=3 Cantidad,
-  // E=4 Fecha, F=5 Moneda, G=6 Precio, J=9 TotalARS, K=10 TotalUSD,
-  // S=18 ResultadoNeto, W=22 GananciaAcumulada
-
-  let totalComprado = 0, totalVendido = 0, totalResultado = 0;
-  let nCompras = 0, nVentas = 0;
-  const porEspecie = {}; // { ticker: { tipo, comprado, vendido, cantidad, ops, resultado } }
+function procesarDatos(rows, precioMap) {
+  const porEspecie = {};
   const porTipo = { Acciones: 0, Cedears: 0, Bonos: 0, FCI: 0 };
-  const acumulados = []; // { fecha, gan }
+  const acumulados = [];
+  let totalComprado = 0, totalVendido = 0, totalResultado = 0, nC = 0, nV = 0;
 
   rows.forEach(r => {
     const instrumento = (r[0]||'').trim();
@@ -263,34 +284,34 @@ function procesarDatos(rows) {
     const cant        = parseNum(r[3]);
     const fecha       = r[4]||'';
     const precio      = parseNum(r[6]);
-    const totalARS    = parseNum(r[9]);
-    const totalUSD    = parseNum(r[10]);
+    const totalARS    = Math.abs(parseNum(r[9])||0);
     const resultado   = parseNum(r[18]);
     const ganAcum     = parseNum(r[22]);
+    // CostoPromedioAfter está en col V (índice 21)
+    const costoPromedioAfter = parseNum(r[21]);
+    // CantidadDespues en col T (índice 19)
+    const cantDespues = parseNum(r[19]);
 
     if (!especie) return;
 
     if (!porEspecie[especie]) {
-      porEspecie[especie] = { tipo: instrumento, comprado: 0, vendido: 0, cantidad: 0, ops: 0, resultado: 0 };
+      porEspecie[especie] = {
+        tipo: instrumento, comprado: 0, vendido: 0,
+        cantidad: 0, ops: 0, resultado: 0,
+        costoPromedio: NaN, cantDespues: 0
+      };
     }
     porEspecie[especie].ops++;
 
     if (op === 'compra') {
-      nCompras++;
-      const v = isNaN(totalARS) ? 0 : Math.abs(totalARS);
-      totalComprado += v;
-      porEspecie[especie].comprado += v;
+      nC++;
+      totalComprado += totalARS;
+      porEspecie[especie].comprado += totalARS;
       porEspecie[especie].cantidad += isNaN(cant) ? 0 : cant;
-      const tl = instrumento.toLowerCase();
-      if (tl.includes('accion') || tl.includes('acción')) porTipo.Acciones += v;
-      else if (tl.includes('cedear')) porTipo.Cedears += v;
-      else if (tl.includes('bono')) porTipo.Bonos += v;
-      else if (tl.includes('fci')) porTipo.FCI += v;
     } else if (op === 'venta') {
-      nVentas++;
-      const v = isNaN(totalARS) ? 0 : Math.abs(totalARS);
-      totalVendido += v;
-      porEspecie[especie].vendido += v;
+      nV++;
+      totalVendido += totalARS;
+      porEspecie[especie].vendido += totalARS;
       porEspecie[especie].cantidad -= isNaN(cant) ? 0 : cant;
       if (!isNaN(resultado)) {
         porEspecie[especie].resultado += resultado;
@@ -298,48 +319,71 @@ function procesarDatos(rows) {
       }
     }
 
-    if (!isNaN(ganAcum) && ganAcum > 0 && fecha) {
-      acumulados.push({ fecha, gan: ganAcum });
+    // Guardamos el último costo promedio y cantidad después de cada operación
+    if (!isNaN(costoPromedioAfter)) porEspecie[especie].costoPromedio = costoPromedioAfter;
+    if (!isNaN(cantDespues)) porEspecie[especie].cantDespues = cantDespues;
+
+    if (!isNaN(ganAcum) && ganAcum > 0 && fecha) acumulados.push({ fecha, gan: ganAcum });
+  });
+
+  // Calcular valor de mercado con precios actuales
+  let totalMercado = 0;
+  let ganNoRealizada = 0;
+  Object.entries(porEspecie).forEach(([ticker, d]) => {
+    const cant = d.cantDespues > 0.01 ? d.cantDespues : d.cantidad;
+    const px = precioMap[ticker];
+    if (!isNaN(px) && px > 0 && cant > 0.01) {
+      d.precioActual = px;
+      d.valorMercado = cant * px;
+      d.ganNoRealizada = d.valorMercado - (cant * d.costoPromedio);
+      d.rendPct = !isNaN(d.costoPromedio) && d.costoPromedio > 0
+        ? ((px - d.costoPromedio) / d.costoPromedio) * 100
+        : NaN;
+      totalMercado += d.valorMercado;
+      ganNoRealizada += d.ganNoRealizada;
+
+      const tl = d.tipo.toLowerCase();
+      if (tl.includes('cedear')) porTipo.Cedears += d.valorMercado;
+      else if (tl.includes('bono')) porTipo.Bonos += d.valorMercado;
+      else if (tl.includes('fci')) porTipo.FCI += d.valorMercado;
+      else porTipo.Acciones += d.valorMercado;
     }
   });
 
-  renderMetrics(totalComprado, totalVendido, totalResultado, nCompras, nVentas);
+  renderMetrics(totalComprado, totalVendido, totalResultado, nC, nV, totalMercado, ganNoRealizada);
   renderDonut(porTipo);
   renderTopBar(porEspecie);
   renderAcumulado(acumulados);
-  renderPosTable(porEspecie);
+  renderPosTable(porEspecie, precioMap);
   renderPL(porEspecie);
   renderOps(rows);
 }
 
-function renderMetrics(comprado, vendido, resultado, nC, nV) {
-  const neto = comprado - vendido;
+function renderMetrics(comprado, vendido, resultado, nC, nV, mercado, ganNR) {
   const items = [
-    { label: 'Total invertido', value: fmtARS(comprado), sub: nC + ' compras' },
-    { label: 'Total vendido', value: fmtARS(vendido), sub: nV + ' ventas' },
-    { label: 'Capital neto en juego', value: fmtARS(neto), sub: 'comprado − vendido', cls: '' },
-    { label: 'Ganancia realizada', value: fmtARS(resultado), sub: 'de operaciones cerradas', cls: resultado >= 0 ? 'up' : 'down' },
-    { label: 'Operaciones totales', value: nC + nV, sub: '' },
+    { label: 'Valor de mercado', value: fmtARS(mercado), sub: 'con precios actuales', cls: '' },
+    { label: 'Gan. no realizada', value: fmtARS(ganNR), sub: 'vs costo promedio', cls: ganNR >= 0 ? 'up' : 'down' },
+    { label: 'Gan. realizada', value: fmtARS(resultado), sub: 'ops cerradas', cls: resultado >= 0 ? 'up' : 'down' },
+    { label: 'Total invertido', value: fmtARS(comprado, true), sub: nC + ' compras', cls: '' },
+    { label: 'Total vendido', value: fmtARS(vendido, true), sub: nV + ' ventas', cls: '' },
+    { label: 'Operaciones', value: nC + nV, sub: '', cls: '' },
   ];
   document.getElementById('metrics-wrap').innerHTML = items.map(i =>
     `<div class="metric">
       <div class="metric-label">${i.label}</div>
-      <div class="metric-value ${i.cls||''}">${i.value}</div>
+      <div class="metric-value ${i.cls}">${i.value}</div>
       ${i.sub ? `<div class="metric-sub">${i.sub}</div>` : ''}
     </div>`).join('');
 }
 
 function renderDonut(porTipo) {
   const labels = Object.keys(porTipo).filter(k => porTipo[k] > 0);
-  const data = labels.map(k => Math.round(porTipo[k]));
+  const data   = labels.map(k => Math.round(porTipo[k]));
   const colors = { Acciones: '#185FA5', Cedears: '#1D9E75', Bonos: '#BA7517', FCI: '#7F77DD' };
   killChart('c-donut');
   charts['c-donut'] = new Chart(document.getElementById('c-donut'), {
     type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{ data, backgroundColor: labels.map(k => colors[k]), borderWidth: 3, borderColor: '#fff' }]
-    },
+    data: { labels, datasets: [{ data, backgroundColor: labels.map(k => colors[k]), borderWidth: 3, borderColor: '#fff' }] },
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '60%',
       plugins: {
@@ -359,23 +403,27 @@ function renderTopBar(porEspecie) {
     return '#185FA5';
   };
   const top = Object.entries(porEspecie)
-    .map(([n, d]) => ({ n, neto: d.comprado - d.vendido, tipo: d.tipo }))
-    .filter(x => x.neto > 0)
-    .sort((a, b) => b.neto - a.neto)
-    .slice(0, 10);
+    .filter(([, d]) => d.valorMercado > 0)
+    .map(([n, d]) => ({ n, v: d.valorMercado, tipo: d.tipo }))
+    .sort((a, b) => b.v - a.v).slice(0, 10);
+
+  // fallback si no hay precios: usar neto invertido
+  const source = top.length > 0 ? top : Object.entries(porEspecie)
+    .map(([n, d]) => ({ n, v: d.comprado - d.vendido, tipo: d.tipo }))
+    .filter(x => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 10);
 
   killChart('c-top');
   charts['c-top'] = new Chart(document.getElementById('c-top'), {
     type: 'bar',
     data: {
-      labels: top.map(x => x.n),
-      datasets: [{ data: top.map(x => Math.round(x.neto)), backgroundColor: top.map(x => colFor(x.tipo)), borderRadius: 4 }]
+      labels: source.map(x => x.n),
+      datasets: [{ data: source.map(x => Math.round(x.v)), backgroundColor: source.map(x => colFor(x.tipo)), borderRadius: 4 }]
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmtARS(ctx.parsed.x) } } },
       scales: {
-        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', callback: v => '$' + (v/1000000).toFixed(1) + 'M' } },
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#888', callback: v => fmtARS(v, true) } },
         y: { grid: { display: false }, ticks: { color: '#444', font: { size: 12 } } }
       }
     }
@@ -408,7 +456,7 @@ function renderAcumulado(acumulados) {
   });
 }
 
-function renderPosTable(porEspecie) {
+function renderPosTable(porEspecie, precioMap) {
   const pillCls = t => {
     const tl = (t||'').toLowerCase();
     if (tl.includes('cedear')) return 'p-ced';
@@ -425,21 +473,40 @@ function renderPosTable(porEspecie) {
   };
 
   const abiertas = Object.entries(porEspecie)
-    .filter(([, d]) => d.cantidad > 0.01)
-    .sort(([, a], [, b]) => (b.comprado - b.vendido) - (a.comprado - a.vendido));
+    .filter(([, d]) => (d.cantDespues > 0.01 || d.cantidad > 0.01))
+    .sort(([, a], [, b]) => (b.valorMercado||0) - (a.valorMercado||0));
 
-  document.getElementById('pos-tbody').innerHTML = abiertas.map(([n, d]) => {
-    const neto = d.comprado - d.vendido;
+  let totalVM = 0, totalGNR = 0;
+  let sinPrecio = 0;
+
+  const rows = abiertas.map(([n, d]) => {
+    const cant = d.cantDespues > 0.01 ? d.cantDespues : d.cantidad;
+    const hasPrecio = !isNaN(d.precioActual) && d.precioActual > 0;
+    if (!hasPrecio) sinPrecio++;
+    if (hasPrecio) { totalVM += d.valorMercado; totalGNR += d.ganNoRealizada; }
+
+    const rendCls = isNaN(d.rendPct) ? 'neutral' : d.rendPct >= 0 ? 'up' : 'down';
+
     return `<tr>
       <td><strong>${n}</strong></td>
       <td><span class="pill ${pillCls(d.tipo)}">${pillLabel(d.tipo)}</span></td>
-      <td style="text-align:right">${Math.round(d.cantidad * 10) / 10}</td>
-      <td style="text-align:right">${fmtARS(d.comprado)}</td>
-      <td style="text-align:right">${fmtARS(d.vendido)}</td>
-      <td style="text-align:right"><strong>${fmtARS(neto)}</strong></td>
-      <td style="text-align:right;color:#aaa">${d.ops}</td>
+      <td style="text-align:right">${Math.round(cant * 100) / 100}</td>
+      <td style="text-align:right">${!isNaN(d.costoPromedio) ? fmtARS(d.costoPromedio) : '-'}</td>
+      <td style="text-align:right">${hasPrecio ? fmtARS(d.precioActual) : '<span class="warn">sin precio</span>'}</td>
+      <td style="text-align:right"><strong>${hasPrecio ? fmtARS(d.valorMercado) : '-'}</strong></td>
+      <td style="text-align:right" class="${rendCls}">${hasPrecio ? fmtARS(d.ganNoRealizada) : '-'}</td>
+      <td style="text-align:right" class="${rendCls}">${hasPrecio ? fmtPct(d.rendPct) : '-'}</td>
     </tr>`;
   }).join('');
+
+  document.getElementById('pos-tbody').innerHTML = rows;
+  document.getElementById('pos-tfoot').innerHTML = `
+    <tr style="border-top: 1px solid rgba(0,0,0,0.1);">
+      <td colspan="5" style="padding:10px;font-weight:500;color:#444;">TOTAL</td>
+      <td style="text-align:right;padding:10px;font-weight:500">${fmtARS(totalVM)}</td>
+      <td style="text-align:right;padding:10px;font-weight:500" class="${totalGNR >= 0 ? 'up' : 'down'}">${fmtARS(totalGNR)}</td>
+      <td style="text-align:right;padding:10px;color:#aaa;font-size:12px">${sinPrecio > 0 ? sinPrecio + ' sin precio' : '✓ todos con precio'}</td>
+    </tr>`;
 }
 
 function renderPL(porEspecie) {
@@ -453,11 +520,7 @@ function renderPL(porEspecie) {
     type: 'bar',
     data: {
       labels: data.map(d => d.n),
-      datasets: [{
-        data: data.map(d => Math.round(d.v / 1000)),
-        backgroundColor: data.map(d => d.v >= 0 ? '#1D9E75' : '#D85A30'),
-        borderRadius: 3
-      }]
+      datasets: [{ data: data.map(d => Math.round(d.v / 1000)), backgroundColor: data.map(d => d.v >= 0 ? '#1D9E75' : '#D85A30'), borderRadius: 3 }]
     },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
@@ -477,7 +540,7 @@ function renderOps(rows) {
     const op = (r[2]||'').toLowerCase();
     const isCompra = op === 'compra';
     return `<tr>
-      <td style="color:#888;font-size:12px;white-space:nowrap">${r[4]||''}</td>
+      <td style="color:#888;font-size:12px">${r[4]||''}</td>
       <td><span class="pill ${isCompra ? 'p-com' : 'p-ven'}">${r[2]||''}</span></td>
       <td><strong>${(r[1]||'').toUpperCase()}</strong></td>
       <td style="color:#888;font-size:12px">${r[0]||''}</td>
@@ -490,15 +553,11 @@ function renderOps(rows) {
 }
 
 async function iniciar() {
-  API_KEY = document.getElementById('api-key').value.trim();
+  API_KEY  = document.getElementById('api-key').value.trim();
   SHEET_ID = document.getElementById('sheet-id').value.trim();
   const errEl = document.getElementById('error-msg');
   errEl.style.display = 'none';
-  if (!API_KEY || !SHEET_ID) {
-    errEl.textContent = 'Completá ambos campos.';
-    errEl.style.display = 'block';
-    return;
-  }
+  if (!API_KEY || !SHEET_ID) { errEl.textContent = 'Completá ambos campos.'; errEl.style.display = 'block'; return; }
   localStorage.setItem('inv_sheet_id', SHEET_ID);
   localStorage.setItem('inv_api_key', API_KEY);
   document.getElementById('setup').style.display = 'none';
